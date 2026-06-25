@@ -7,14 +7,14 @@
     "url": "https://github.com/rnm-dev"
   },
   "metadata": {
-    "version": "0.9.1"
+    "version": "0.9.2"
   },
   "plugins": [
     {
       "name": "heroboard",
       "source": "./",
       "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, human-presence effort heartbeats, and /heroboard commands.",
-      "version": "0.9.1",
+      "version": "0.9.2",
       "author": {
         "name": "Heroboard"
       },

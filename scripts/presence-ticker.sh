@@ -93,11 +93,12 @@ start() {
   # host + plugin version → Settings "Claude Code connections" card (HB-302)
   host="$(hb_host)"
   ver="$(hb_plugin_version)"
-  payload="{\"kind\":\"heartbeat\""
-  [ -n "$repo" ] && payload="${payload},\"repo\":\"${repo}\""
-  [ -n "$host" ] && payload="${payload},\"host\":\"${host}\""
-  [ -n "$ver" ] && payload="${payload},\"v\":\"${ver}\""
-  payload="${payload}}"
+  # Universal heartbeat envelope (HB-367/HB-368): presence-only, client="plugin". The per-beat
+  # `time` is stamped inside the loop below so each ~60s beat carries its own timestamp.
+  payload_base="{\"type\":\"presence\",\"client\":\"plugin\""
+  [ -n "$repo" ] && payload_base="${payload_base},\"repo\":\"${repo}\""
+  [ -n "$host" ] && payload_base="${payload_base},\"host\":\"${host}\""
+  [ -n "$ver" ]  && payload_base="${payload_base},\"v\":\"${ver}\""
   stop  # avoid duplicate loops
   hb_log "start (repo=${repo:-<none>})"
   ( i=0
@@ -108,9 +109,10 @@ start() {
       if [ "$(( $(date +%s) - last ))" -gt "$IDLE_MAX" ]; then
         hb_log "tick $i -> idle, skip"
       else
+        # stamp this beat's own time (HB-368); base envelope built once above
         code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://heroboard.app/api/heartbeat" \
           -H "X-Api-Key: ${key}" -H "Content-Type: application/json" \
-          -d "$payload")
+          -d "${payload_base},\"time\":$(date +%s)}")
         hb_log "tick $i -> HTTP ${code:-000}"
       fi
       i=$((i + 1)); sleep 60
