@@ -1,9 +1,9 @@
 {
   "name": "heroboard",
-  "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, effort heartbeats (Monkey/Agent time), and /heroboard commands.",
-  "version": "0.8.0",
+  "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, human-presence effort heartbeats, and /heroboard commands.",
+  "version": "0.9.1",
   "author": { "name": "Heroboard" },
-  "homepage": "https://dev.heroboard.app",
+  "homepage": "https://heroboard.app",
   "repository": "https://github.com/rnm-dev/heroboard-claude-code",
   "userConfig": {
     "api_key": {
@@ -16,7 +16,7 @@
     "presence_ticker": {
       "type": "boolean",
       "title": "Continuous presence ticker",
-      "description": "Keep effort accruing every ~60s while a session is active — i.e. you prompted within the last 5 min — so time tracks live presence, not just an open window. Goes idle automatically once you stop prompting. On by default; turn off to count only prompt/edit events.",
+      "description": "Keep effort accruing every ~60s while a session is active — i.e. you prompted within the last 5 min — so time tracks live presence, not just an open window. Goes idle automatically once you stop prompting. On by default; turn off to count only per-prompt events.",
       "default": true
     }
   }

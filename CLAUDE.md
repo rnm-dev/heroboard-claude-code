@@ -4,7 +4,7 @@ Guidance for working on the **Heroboard Claude Code plugin** in this repo.
 
 ## What this is
 A Claude Code [plugin](https://code.claude.com/docs/en/plugins) that wires a session to
-[Heroboard](https://dev.heroboard.app). The repo root **is** the plugin, and it doubles as its own
+[Heroboard](https://heroboard.app). The repo root **is** the plugin, and it doubles as its own
 single-plugin marketplace. There is no build step and no runtime dependencies beyond `bash`,
 `curl`, and `git` — the effort hooks are pure shell so they add **zero tokens** and never call the
 model.
@@ -17,21 +17,24 @@ Installed via `/plugin marketplace add rnm-dev/heroboard-claude-code` →
 .claude-plugin/
   plugin.json        # plugin manifest: name, version, userConfig (api_key, presence_ticker)
   marketplace.json   # one-plugin marketplace pointing at "./"
-.mcp.json            # HTTP MCP server → dev.heroboard.app, auth via ${user_config.api_key}
-hooks/hooks.json     # UserPromptSubmit / PostToolUse / SessionStart / SessionEnd → scripts
+.mcp.json            # HTTP MCP server → heroboard.app, auth via ${user_config.api_key}
+hooks/hooks.json     # UserPromptSubmit / SessionStart / SessionEnd → scripts
 commands/*.md        # slash commands (/heroboard:login, :tasks, :task, :create, :status, :ship)
 scripts/
-  _key.sh            # sourced helper: key resolution, debug logging, per-session id
-  heartbeat.sh       # per-event heartbeat (prompt → Monkey, tool-use → Agent)
+  _key.sh            # sourced helper: key resolution, host/version, debug logging, per-session id
+  heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
 ```
 
 ## How effort tracking works
-- **`heartbeat.sh <kind>`** — fired by hooks. `kind=heartbeat` on every prompt (human/Monkey
-  time), `kind=code` on every `PostToolUse` (agent time). Fire-and-forget: 3s `curl` timeout,
-  backgrounded, always `exit 0` so it can never block or fail a prompt. POSTs to
-  `https://dev.heroboard.app/api/heartbeat` with the working dir's `remote.origin.url` so the
-  server attributes the time to the right project.
+Tracked time is **pure human presence** (HB-356, Phase 1): the plugin emits only `heartbeat`
+events. The `code`/agent track is dormant — `heartbeat.sh` still accepts a `kind` arg for a future
+AI-effort phase (Phase 2), but nothing feeds it `code` anymore.
+- **`heartbeat.sh <kind>`** — fired by the `UserPromptSubmit` hook as `kind=heartbeat` (human
+  time). Fire-and-forget: 3s `curl` timeout, backgrounded, always `exit 0` so it can never block
+  or fail a prompt. POSTs to `https://heroboard.app/api/heartbeat` with the working dir's
+  `remote.origin.url` (project attribution) plus `host` + `v` (plugin version) for the Settings
+  "Claude Code connections" card (HB-302).
 - **`presence-ticker.sh start|stop`** — started at `SessionStart`, stopped at `SessionEnd` via a
   PID file. While running it pings every 60s **only if** a human prompted within the last 5 min
   (it reads the mtime of an activity file that `heartbeat.sh` touches on prompts only). Hard 12h

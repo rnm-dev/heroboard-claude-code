@@ -90,11 +90,14 @@ start() {
   # Repo of the session's working dir, captured once → the server maps it to a project so
   # presence time accrues to the right workspace (HB-250). Not a repo → unattributed.
   repo="$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" config --get remote.origin.url 2>/dev/null)"
-  if [ -n "$repo" ]; then
-    payload="{\"kind\":\"heartbeat\",\"repo\":\"${repo}\"}"
-  else
-    payload='{"kind":"heartbeat"}'
-  fi
+  # host + plugin version → Settings "Claude Code connections" card (HB-302)
+  host="$(hb_host)"
+  ver="$(hb_plugin_version)"
+  payload="{\"kind\":\"heartbeat\""
+  [ -n "$repo" ] && payload="${payload},\"repo\":\"${repo}\""
+  [ -n "$host" ] && payload="${payload},\"host\":\"${host}\""
+  [ -n "$ver" ] && payload="${payload},\"v\":\"${ver}\""
+  payload="${payload}}"
   stop  # avoid duplicate loops
   hb_log "start (repo=${repo:-<none>})"
   ( i=0
@@ -105,7 +108,7 @@ start() {
       if [ "$(( $(date +%s) - last ))" -gt "$IDLE_MAX" ]; then
         hb_log "tick $i -> idle, skip"
       else
-        code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://dev.heroboard.app/api/heartbeat" \
+        code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://heroboard.app/api/heartbeat" \
           -H "X-Api-Key: ${key}" -H "Content-Type: application/json" \
           -d "$payload")
         hb_log "tick $i -> HTTP ${code:-000}"

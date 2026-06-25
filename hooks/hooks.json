@@ -7,14 +7,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/heartbeat.sh\" code" }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "hooks": [

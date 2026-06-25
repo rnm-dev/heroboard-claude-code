@@ -1,6 +1,6 @@
 # Heroboard — Claude Code plugin
 
-Connects your Claude Code session to [Heroboard](https://dev.heroboard.app): task tools over
+Connects your Claude Code session to [Heroboard](https://heroboard.app): task tools over
 MCP, effort heartbeats that turn your terminal time into XP, and `/heroboard` commands.
 
 This repository **is** the plugin and its own one-plugin
@@ -10,11 +10,11 @@ GitHub, no separate marketplace repo needed.
 ## What you get
 - **MCP task tools** — `list_projects`, `list_tasks`, `get_task`, `create_task`, `update_task`,
   `report_progress`, `create_epic`, `close_task`.
-- **Effort heartbeats** (0 tokens — plain HTTP, no model call):
-  - every prompt → **Monkey** (human) time
-  - every agent tool use (edits, `Bash`, search, MCP calls…) → **Agent** time
-  - an optional **continuous presence ticker** that keeps time accruing every ~60s while you're
-    actively prompting, and goes idle automatically when you stop.
+- **Effort heartbeats** (0 tokens — plain HTTP, no model call) — track your **human presence**:
+  - every prompt → human time
+  - a **continuous presence ticker** that keeps time accruing every ~60s while you're actively
+    prompting (a prompt within the last 5 min), and goes idle automatically once you stop.
+  - tracked time is **pure human hours**; a separate AI-effort track lands in a later phase.
 - **Slash commands**: `/heroboard:login`, `/heroboard:tasks`, `/heroboard:task <KEY>`,
   `/heroboard:create <desc>`, `/heroboard:status`, `/heroboard:ship`.
 

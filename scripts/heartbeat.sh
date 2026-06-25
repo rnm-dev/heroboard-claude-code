@@ -24,14 +24,17 @@ key="$(hb_resolve_key)"
 # Repo of the working dir → the server maps it to a project so this time accrues to the right
 # workspace (HB-250). git absent / not a repo → omit, server leaves the event unattributed.
 repo="$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" config --get remote.origin.url 2>/dev/null)"
-if [ -n "$repo" ]; then
-  payload="{\"kind\":\"${kind}\",\"repo\":\"${repo}\"}"
-else
-  payload="{\"kind\":\"${kind}\"}"
-fi
-hb_log "POST repo=${repo:-<none>}"
+# host + plugin version drive the Settings "Claude Code connections" card (HB-302)
+host="$(hb_host)"
+ver="$(hb_plugin_version)"
+payload="{\"kind\":\"${kind}\""
+[ -n "$repo" ] && payload="${payload},\"repo\":\"${repo}\""
+[ -n "$host" ] && payload="${payload},\"host\":\"${host}\""
+[ -n "$ver" ] && payload="${payload},\"v\":\"${ver}\""
+payload="${payload}}"
+hb_log "POST repo=${repo:-<none>} host=${host:-<none>} v=${ver:-<none>}"
 # Backgrounded so the hook never blocks the prompt; capture the HTTP status to the debug log.
-( code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://dev.heroboard.app/api/heartbeat" \
+( code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://heroboard.app/api/heartbeat" \
     -H "X-Api-Key: ${key}" \
     -H "Content-Type: application/json" \
     -d "$payload" 2>/dev/null)

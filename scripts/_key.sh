@@ -68,3 +68,16 @@ hb_session_id() {
   [ -z "$sid" ] && sid="u$(id -u 2>/dev/null || echo 0)"
   printf '%s' "$sid" | tr -cd 'A-Za-z0-9._-'
 }
+
+# Machine name — identifies this Claude Code in the Settings connections card (HB-302).
+hb_host() {
+  printf '%s' "$(hostname 2>/dev/null || echo unknown)" | tr -cd 'A-Za-z0-9._-' | cut -c1-80
+}
+
+# Installed plugin version, parsed from the plugin's own plugin.json (HB-302). Reported on
+# heartbeat so the server can flag machines running an outdated plugin.
+hb_plugin_version() {
+  local f="${CLAUDE_PLUGIN_ROOT:-}/.claude-plugin/plugin.json"
+  [ -f "$f" ] || return 0
+  grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" 2>/dev/null | head -1 | cut -d'"' -f4
+}
