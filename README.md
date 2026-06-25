@@ -1,0 +1,96 @@
+# Heroboard — Claude Code plugin
+
+Connects your Claude Code session to [Heroboard](https://dev.heroboard.app): task tools over
+MCP, effort heartbeats that turn your terminal time into XP, and `/heroboard` commands.
+
+This repository **is** the plugin and its own one-plugin
+[marketplace](https://code.claude.com/docs/en/plugin-marketplaces) — install it directly from
+GitHub, no separate marketplace repo needed.
+
+## What you get
+- **MCP task tools** — `list_projects`, `list_tasks`, `get_task`, `create_task`, `update_task`,
+  `report_progress`, `create_epic`, `close_task`.
+- **Effort heartbeats** (0 tokens — plain HTTP, no model call):
+  - every prompt → **Monkey** (human) time
+  - every agent tool use (edits, `Bash`, search, MCP calls…) → **Agent** time
+  - an optional **continuous presence ticker** that keeps time accruing every ~60s while you're
+    actively prompting, and goes idle automatically when you stop.
+- **Slash commands**: `/heroboard:login`, `/heroboard:tasks`, `/heroboard:task <KEY>`,
+  `/heroboard:create <desc>`, `/heroboard:status`, `/heroboard:ship`.
+
+## Install
+```
+/plugin marketplace add rnm-dev/heroboard-claude-code
+/plugin install heroboard@heroboard
+```
+On enable, Claude Code **prompts once for your Heroboard API key** and stores it securely in your
+system keychain — no `export`, no env var. Get a key in Heroboard →
+**Settings → MCP → "+ New key"**. (Requires Claude Code 2.1.143+.)
+
+The same stored key powers both the MCP server and the effort hooks. It works the same on
+macOS / Linux / Windows and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
+
+### Auto-install for a whole team
+Drop this in your repo's `.claude/settings.json` so anyone who trusts the project folder gets
+prompted to install:
+```json
+{
+  "extraKnownMarketplaces": {
+    "heroboard": {
+      "source": { "source": "github", "repo": "rnm-dev/heroboard-claude-code" }
+    }
+  },
+  "enabledPlugins": {
+    "heroboard@heroboard": true
+  }
+}
+```
+
+**Agent-mode (Claude app) note.** In desktop/web *agent-mode* sessions the keychain key reaches
+the MCP server but isn't exported into the effort hooks' shell env, so the hooks alone can't
+authenticate. To bridge this, the first terminal CLI session caches the key to
+`~/.config/heroboard-plugin/key` (`0600`), which agent-mode hooks then read. So run the plugin in a
+terminal once after install to enable effort tracking inside the app. Delete that file to opt out.
+
+To change the key later, update the plugin's config via `/plugin` (or disable + re-enable).
+
+## Migrating from manual setup
+If you previously added a `~/.claude/settings.json` heartbeat hook or `export HEROBOARD_API_KEY`,
+remove them after installing — the plugin replaces both (and reads the key from the keychain).
+
+## Notes
+- Heartbeats are fire-and-forget (3s timeout, backgrounded) — never block or fail a prompt.
+- No key set → heartbeats silently no-op; nothing breaks. The one-time "set your key" notice is
+  surfaced at `SessionStart`.
+- Continuous presence ticker is **on by default** — toggle it via the plugin's config (`/plugin`).
+  It keeps effort accruing every ~60s while a session is **active** (you prompted within the last
+  5 min), and goes idle automatically once you stop — so an open-but-idle session no longer accrues
+  time.
+
+## Local development
+Test the plugin without the marketplace:
+```
+claude --plugin-dir .
+```
+Or test the marketplace end-to-end from a checkout:
+```
+/plugin marketplace add ./
+/plugin install heroboard@heroboard
+```
+After editing while Claude Code is running: `/reload-plugins`.
+
+Validate before pushing a release:
+```
+claude plugin validate .
+```
+
+## Versioning
+Bump `version` in **both** [`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json) and the
+matching marketplace entry in [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json)
+on every release, or users won't see the update. The plugin nudges users once a day at
+`SessionStart` when the `version` published on `main` is newer than what they have installed.
+
+## Reference
+- [Claude Code plugins docs](https://code.claude.com/docs/en/plugins)
+- [Plugin marketplaces docs](https://code.claude.com/docs/en/plugin-marketplaces)
+- [Plugins reference](https://code.claude.com/docs/en/plugins-reference)

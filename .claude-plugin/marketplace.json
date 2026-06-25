@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "heroboard",
+  "description": "Heroboard's Claude Code plugin",
+  "owner": {
+    "name": "Heroboard",
+    "url": "https://github.com/rnm-dev"
+  },
+  "metadata": {
+    "version": "0.8.0"
+  },
+  "plugins": [
+    {
+      "name": "heroboard",
+      "source": "./",
+      "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, effort heartbeats (Monkey/Agent time), and /heroboard commands.",
+      "version": "0.8.0",
+      "author": {
+        "name": "Heroboard"
+      },
+      "homepage": "https://dev.heroboard.app",
+      "category": "productivity",
+      "tags": [
+        "heroboard",
+        "time-tracking",
+        "effort",
+        "gamification",
+        "mcp"
+      ]
+    }
+  ]
+}

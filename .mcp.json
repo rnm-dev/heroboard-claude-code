@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "heroboard": {
+      "type": "http",
+      "url": "https://dev.heroboard.app/api/mcp/mcp",
+      "headers": {
+        "X-Api-Key": "${user_config.api_key}"
+      }
+    }
+  }
+}
