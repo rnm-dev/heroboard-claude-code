@@ -57,7 +57,7 @@ hb_update_nudge() {
   [ -n "$latest" ] || return 0
   if hb_version_gt "$latest" "$installed"; then
     hb_log "update available ($installed -> $latest)"
-    printf '{"systemMessage":"Heroboard: plugin update available (%s → %s). Run  /plugin update heroboard@heroboard  then  /reload-plugins  to upgrade."}\n' "$installed" "$latest"
+    printf '{"systemMessage":"Heroboard: plugin update available (%s → %s). Run  /plugin update heroboard@claude-code  then  /reload-plugins  to upgrade."}\n' "$installed" "$latest"
   fi
 }
 

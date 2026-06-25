@@ -21,7 +21,7 @@ GitHub, no separate marketplace repo needed.
 ## Install
 ```
 /plugin marketplace add rnm-dev/heroboard-claude-code
-/plugin install heroboard@heroboard
+/plugin install heroboard@claude-code
 ```
 On enable, Claude Code **prompts once for your Heroboard API key** and stores it securely in your
 system keychain — no `export`, no env var. Get a key in Heroboard →
@@ -36,12 +36,12 @@ prompted to install:
 ```json
 {
   "extraKnownMarketplaces": {
-    "heroboard": {
+    "claude-code": {
       "source": { "source": "github", "repo": "rnm-dev/heroboard-claude-code" }
     }
   },
   "enabledPlugins": {
-    "heroboard@heroboard": true
+    "heroboard@claude-code": true
   }
 }
 ```
@@ -75,7 +75,7 @@ claude --plugin-dir .
 Or test the marketplace end-to-end from a checkout:
 ```
 /plugin marketplace add ./
-/plugin install heroboard@heroboard
+/plugin install heroboard@claude-code
 ```
 After editing while Claude Code is running: `/reload-plugins`.
 
