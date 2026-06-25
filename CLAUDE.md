@@ -10,7 +10,7 @@ single-plugin marketplace. There is no build step and no runtime dependencies be
 model.
 
 Installed via `/plugin marketplace add rnm-dev/heroboard-claude-code` →
-`/plugin install heroboard@claude-code`.
+`/plugin install heroboard@heroboard`.
 
 ## Layout
 ```
@@ -70,7 +70,7 @@ scripts/
 2. `claude plugin validate .`
 3. Commit + push to `main`. The once-a-day `SessionStart` nudge compares the installed version
    against `main`'s `plugin.json` and tells users to run
-   `/plugin update heroboard@claude-code` + `/reload-plugins`.
+   `/plugin update heroboard@heroboard` + `/reload-plugins`.
 
 ## Debugging the hooks
 Hooks are otherwise invisible. Enable logging with `export HEROBOARD_DEBUG=1` **or**

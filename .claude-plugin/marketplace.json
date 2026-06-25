@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
-  "name": "claude-code",
+  "name": "heroboard",
   "description": "Heroboard's Claude Code plugin",
   "owner": {
     "name": "Heroboard",
