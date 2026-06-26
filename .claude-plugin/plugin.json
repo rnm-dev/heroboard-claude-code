@@ -1,7 +1,7 @@
 {
   "name": "heroboard",
   "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, human-presence effort heartbeats, and /heroboard commands.",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "author": { "name": "Heroboard" },
   "homepage": "https://heroboard.app",
   "repository": "https://github.com/rnm-dev/heroboard-claude-code",

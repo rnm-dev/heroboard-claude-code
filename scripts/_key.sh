@@ -11,7 +11,24 @@
 # (0600); agent-mode sessions, lacking the env var, fall back to reading that file. The
 # plaintext key on disk is the deliberate trade-off for app-session effort tracking. Best-effort
 # throughout: a hook must never block or fail, so every fs op is guarded and silent.
-HB_CONFDIR="${XDG_CONFIG_HOME:-$HOME/.config}/heroboard-plugin"
+# --- instance environment (one knob drives everything) ------------------------------------------
+# `HB_ENV` is the single variable that distinguishes this install: it derives the backend URL, the
+# /tmp + config namespace, and the key source. Default is prod, so the PUBLISHED plugin behaves
+# exactly as before (no env.conf shipped → no dev anything). A local dev copy run via
+# `claude --plugin-dir` drops a sibling `scripts/env.conf` (gitignored, never published) setting
+# HB_ENV=dev + HB_BASE + HB_KEY_OVERRIDE — so prod and a dev copy can run side by side without
+# clobbering each other's tickers, key cache, or config dir.
+HB_ENV="prod"
+HB_BASE="https://heroboard.app"
+HB_KEY_OVERRIDE=""
+# $0 is the sourcing script (heartbeat.sh / presence-ticker.sh), which lives in this same dir —
+# the same pattern those scripts use to locate _key.sh, so env.conf sits right next to them.
+__hb_dir="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+[ -n "$__hb_dir" ] && [ -f "$__hb_dir/env.conf" ] && . "$__hb_dir/env.conf"
+# Namespace suffix: empty for prod (paths unchanged), "-<env>" otherwise (isolated state + config).
+HB_SFX=""; [ "$HB_ENV" != "prod" ] && HB_SFX="-${HB_ENV}"
+
+HB_CONFDIR="${XDG_CONFIG_HOME:-$HOME/.config}/heroboard-plugin${HB_SFX}"
 HB_KEYFILE="$HB_CONFDIR/key"
 
 # Opt-in debug log (HB-258): hooks are otherwise invisible — you can't tell if they fire,
@@ -36,6 +53,9 @@ hb_log() {
 
 # Print the resolved key (empty if none). Side effect: when the env key is present, cache it.
 hb_resolve_key() {
+  # Dev copies (run via --plugin-dir, which has no userConfig) pin the key in env.conf so the
+  # scripts don't fall back to the prod-cached keyfile and 401 against the dev backend.
+  if [ -n "$HB_KEY_OVERRIDE" ]; then hb_log "key from env.conf override (len=${#HB_KEY_OVERRIDE})"; printf '%s' "$HB_KEY_OVERRIDE"; return 0; fi
   local k="${CLAUDE_PLUGIN_OPTION_api_key:-}"
   if [ -n "$k" ]; then
     # cache for env-less (agent-mode) sessions, only when changed, perms locked to the user
@@ -51,20 +71,45 @@ hb_resolve_key() {
   printf '%s' "$fk"
 }
 
-# Stable per-session id, for namespacing the /tmp state files (presence pid + activity
-# marker). Without it those paths are machine-global and collide: two concurrent sessions
-# fight over one pid file — each SessionStart kills the other's ticker, so continuous time
-# collapses onto whichever started last — and on a shared Linux box where /tmp is world-shared,
-# one OS user's idle ticker reads another's activity mtime and accrues time off their presence.
-# Claude Code exposes NO session env var, so we parse session_id out of the hook's stdin JSON;
-# it's present on every hook event and constant for the life of a session. Floor to the OS uid
-# so that even with no stdin we still never share a path across users. Consumes stdin AT MOST
-# ONCE (skipped on a TTY so a manual run can't hang) — call it before anything else reads stdin.
+# --- hook stdin JSON, read ONCE (HB-404) -------------------------------------------------------
+# A pipe can only be consumed once, but agent beats need SEVERAL fields out of the PostToolUse
+# payload (session_id + tool_name + the file it touched). So we capture the whole stdin JSON into
+# HB_STDIN one time and parse fields from that string. Skipped on a TTY so a manual run can't hang.
+# Call hb_capture_stdin in the TOP-LEVEL shell (not a subshell) before anything that needs a field
+# — command substitutions then inherit HB_STDIN. hb_session_id / hb_json_str read HB_STDIN, never
+# stdin, so they can be called as many times as needed.
+HB_STDIN=""
+hb_capture_stdin() {
+  [ -t 0 ] && return 0
+  HB_STDIN="$(cat 2>/dev/null)"
+}
+
+# Flat best-effort extract of a JSON string field by key from HB_STDIN — no jq on the user's box.
+# Returns the FIRST match's value: Claude Code emits tool_name/file_path ahead of the bulky string
+# fields (old_string/content), so the first hit is the real top-level one even on a flat scan.
+hb_json_str() {
+  printf '%s' "$HB_STDIN" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | cut -d'"' -f4
+}
+
+# Sanitize a value before it goes into the hand-built JSON payload (HB-404): strip control chars
+# and the two characters that would break the JSON or inject into it (" and \), then truncate. We
+# only ever send file PATHS as `entity` (never command/URL text, where tokens hide), so this plus
+# the file-path-only rule keeps secrets off the wire while guaranteeing the payload stays valid JSON.
+hb_sanitize() {
+  printf '%s' "$1" | tr -d '\000-\037"\\' | cut -c1-256
+}
+
+# Stable per-session id, sent on every beat (HB-404, groups a session server-side) and used to
+# namespace the /tmp state files (presence pid + activity marker). Without it those paths are
+# machine-global and collide: two concurrent sessions fight over one pid file — each SessionStart
+# kills the other's ticker, so continuous time collapses onto whichever started last — and on a
+# shared Linux box where /tmp is world-shared, one OS user's idle ticker reads another's activity
+# mtime and accrues time off their presence. Claude Code exposes NO session env var, so we parse
+# session_id out of the hook's stdin JSON (captured by hb_capture_stdin); it's present on every
+# hook event and constant for the session. Floor to the OS uid so even with no stdin we never
+# share a path across users.
 hb_session_id() {
-  local sid=""
-  if [ ! -t 0 ]; then
-    sid="$(cat 2>/dev/null | grep -o '"session_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)"
-  fi
+  local sid; sid="$(hb_json_str session_id)"
   [ -z "$sid" ] && sid="u$(id -u 2>/dev/null || echo 0)"
   printf '%s' "$sid" | tr -cd 'A-Za-z0-9._-'
 }

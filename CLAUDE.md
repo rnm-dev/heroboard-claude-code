@@ -21,7 +21,7 @@ Installed via `/plugin marketplace add rnm-dev/heroboard-claude-code` →
 hooks/hooks.json     # UserPromptSubmit / SessionStart / SessionEnd → scripts
 commands/*.md        # slash commands (/heroboard:login, :tasks, :task, :create, :status, :ship)
 scripts/
-  _key.sh            # sourced helper: key resolution, host/version, debug logging, per-session id
+  _key.sh            # sourced helper: key resolution, host/version, debug logging, per-session id, stdin JSON parse/sanitize
   heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
   smoke.sh           # offline heartbeat-contract self-check (HB-385); no network/deps
@@ -36,10 +36,17 @@ Two meters on one **universal heartbeat envelope** (HB-367): **human presence** 
   presence** beat. `agent` (`PostToolUse`, matcher `*`) → one **AI-work** beat per model tool-use,
   same envelope plus `initiator:"agent"`. Fire-and-forget: 3s `curl` timeout, backgrounded, always
   `exit 0` so it can never block or fail a prompt. POSTs a JSON envelope to
-  `https://heroboard.app/api/heartbeat`: `type:"presence"`, `client:"plugin"`, a client-stamped
-  `time` (epoch seconds), the working dir's `remote.origin.url` (`repo` attribution), and `host` +
-  `v` (plugin version) for the Settings "Claude Code connections" card (HB-302). Only the human
-  beat touches the activity file — agent tool-use must not keep the presence ticker alive.
+  `https://heroboard.app/api/heartbeat`: `type:"presence"`, `client:"plugin"`, `session_id`
+  (HB-404 — present on every beat so the server can group a session), a client-stamped `time`
+  (epoch seconds), the working dir's `remote.origin.url` (`repo` attribution), and `host` + `v`
+  (plugin version) for the Settings "Claude Code connections" card (HB-302). **Agent beats** also
+  describe the tool-use (HB-404): `tool` (the tool name), and for file tools `entity` (the file
+  path) + `entity_type:"file"` + `is_write` (`true` for Edit/Write/MultiEdit/NotebookEdit). Those
+  fields are parsed from the `PostToolUse` stdin — captured once via `hb_capture_stdin` (a pipe
+  reads once, but agent beats need several fields), **file-path-only and sanitized** (`hb_sanitize`)
+  so command/URL text — where tokens hide — never reaches the wire and the hand-built JSON can't be
+  broken. Only the human beat touches the activity file — agent tool-use must not keep the presence
+  ticker alive.
   **Contract (HB-385):** every beat carries `client:"plugin"` and a clean-semver `v` (or omits `v`
   — never a malformed value, since the backend compares it with `semverLt`). The clean-semver
   guarantee lives in `hb_plugin_version` (`_key.sh`); `scripts/smoke.sh` verifies the whole envelope

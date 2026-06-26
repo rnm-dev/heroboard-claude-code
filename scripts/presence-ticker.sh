@@ -13,12 +13,13 @@
 # Lifecycle: SessionStart → start, SessionEnd → stop (via PID file). A hard 12h cap means
 # even an orphaned loop dies on its own.
 . "$(cd "$(dirname "$0")" && pwd)/_key.sh"  # hb_resolve_key (key, HB-252) + hb_log (HB-258) + hb_session_id
-# Per-session id (reads the hook's stdin JSON once, see _key.sh). Namespacing both state files
-# by it means each concurrent session runs its own correctly-attributed ticker, and OS users
-# sharing /tmp on a Linux box never collide on the pid/activity files.
+# Read the hook's stdin JSON once (see _key.sh) so hb_session_id can parse session_id from it.
+hb_capture_stdin
+# Per-session id: namespaces both state files (each concurrent session runs its own correctly-
+# attributed ticker; OS users sharing /tmp never collide) and is sent on every beat (HB-404).
 HB_SID="$(hb_session_id)"
-PIDFILE="${TMPDIR:-/tmp}/heroboard-presence.${HB_SID}.pid"
-ACTFILE="${TMPDIR:-/tmp}/heroboard-last-activity.${HB_SID}"  # mtime bumped by heartbeat.sh on prompts (HB-269); path must match heartbeat's
+PIDFILE="${TMPDIR:-/tmp}/heroboard${HB_SFX}-presence.${HB_SID}.pid"
+ACTFILE="${TMPDIR:-/tmp}/heroboard${HB_SFX}-last-activity.${HB_SID}"  # mtime bumped by heartbeat.sh on prompts (HB-269); path must match heartbeat's
 IDLE_MAX=300  # stop accruing 5 min after the last human prompt
 HB_TAG="presence"
 
@@ -96,6 +97,7 @@ start() {
   # Universal heartbeat envelope (HB-367/HB-368): presence-only, client="plugin". The per-beat
   # `time` is stamped inside the loop below so each ~60s beat carries its own timestamp.
   payload_base="{\"type\":\"presence\",\"client\":\"plugin\""
+  [ -n "$HB_SID" ] && payload_base="${payload_base},\"session_id\":\"${HB_SID}\""
   [ -n "$repo" ] && payload_base="${payload_base},\"repo\":\"${repo}\""
   [ -n "$host" ] && payload_base="${payload_base},\"host\":\"${host}\""
   [ -n "$ver" ]  && payload_base="${payload_base},\"v\":\"${ver}\""
@@ -110,7 +112,7 @@ start() {
         hb_log "tick $i -> idle, skip"
       else
         # stamp this beat's own time (HB-368); base envelope built once above
-        code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "https://heroboard.app/api/heartbeat" \
+        code=$(curl -s -m 3 -o /dev/null -w '%{http_code}' -X POST "${HB_BASE}/api/heartbeat" \
           -H "X-Api-Key: ${key}" -H "Content-Type: application/json" \
           -d "${payload_base},\"time\":$(date +%s)}")
         hb_log "tick $i -> HTTP ${code:-000}"

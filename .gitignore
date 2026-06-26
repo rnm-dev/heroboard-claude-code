@@ -8,3 +8,5 @@ node_modules/
 .env
 .env.*
 !.env.example
+# per-instance env override for a local dev copy (HB_ENV/HB_BASE/HB_KEY_OVERRIDE) — never publish
+scripts/env.conf

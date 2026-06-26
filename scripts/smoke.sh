@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Heartbeat contract smoke check (HB-385). Offline, no network, no deps beyond bash + grep.
+# Heartbeat contract smoke check (HB-385 / HB-404). Offline, no network, no deps beyond bash + grep.
 #
-# Locks the "Apps & Integrations" contract the backend consumes: every heartbeat envelope must
-# carry type:"presence", client:"plugin", and a CLEAN-semver `v` (or omit `v` entirely — never a
-# malformed value, which would break the server's semverLt outdated-compare). The agent-track beat
-# additionally carries initiator:"agent". This rebuilds the payload the way scripts/heartbeat.sh
-# does and asserts the shape, plus checks hb_plugin_version's clean-semver guarantee directly.
+# Locks the "Apps & Integrations" + "effort 2.0" contract the backend consumes. Every envelope must
+# carry type:"presence", client:"plugin", session_id, and a CLEAN-semver `v` (or omit `v` — never a
+# malformed value, which would break the server's semverLt compare). Agent-track beats additionally
+# carry initiator:"agent", the tool name, the file touched (entity + entity_type:"file"), and
+# is_write. This exercises the real parse/sanitize helpers from _key.sh on sample PostToolUse stdin,
+# then rebuilds the payload the way scripts/heartbeat.sh does and asserts the shape.
 #
 # Run: bash scripts/smoke.sh   → prints PASS/FAIL per check; exit 0 all-green, exit 1 on any fail.
 set -u
@@ -27,10 +28,33 @@ pj="$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$ROOT/.claude-plugin/
 check "hb_plugin_version is clean semver"        'printf "%s" "$ver" | grep -Eq "$SEMVER_RE"'
 check "hb_plugin_version == plugin.json version"  '[ "$ver" = "$pj" ]'
 
-# 2. Build the presence (human) payload exactly as heartbeat.sh does and assert the contract fields.
+# 2. Parse/sanitize helpers (HB-404). HB_STDIN is what hb_capture_stdin populates from the pipe;
+#    set it directly here to a sample PostToolUse Edit payload.
+SAMPLE_SID="sess-abc123"
+SAMPLE_FILE="/Users/x/proj/src/app.ts"
+HB_STDIN="{\"session_id\":\"${SAMPLE_SID}\",\"hook_event_name\":\"PostToolUse\",\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"${SAMPLE_FILE}\",\"old_string\":\"a\",\"new_string\":\"b\"}}"
+check "hb_json_str pulls session_id"            '[ "$(hb_json_str session_id)" = "$SAMPLE_SID" ]'
+check "hb_json_str pulls tool_name"             '[ "$(hb_json_str tool_name)" = "Edit" ]'
+check "hb_json_str pulls nested file_path"       '[ "$(hb_json_str file_path)" = "$SAMPLE_FILE" ]'
+check "hb_session_id reads stdin (not uid)"      '[ "$(hb_session_id)" = "$SAMPLE_SID" ]'
+check "hb_sanitize strips quote/backslash"       '[ "$(hb_sanitize "a\"b\\c")" = "abc" ]'
+
+# 3. Rebuild the payload exactly as heartbeat.sh does, off the captured HB_STDIN.
 build() { # $1 = MODE (presence|agent)
-  local p="{\"type\":\"presence\",\"client\":\"plugin\""
-  [ "$1" = agent ] && p="${p},\"initiator\":\"agent\""
+  local sid tool entity is_write p
+  sid="$(hb_session_id)"
+  p="{\"type\":\"presence\",\"client\":\"plugin\""
+  [ -n "$sid" ] && p="${p},\"session_id\":\"${sid}\""
+  if [ "$1" = agent ]; then
+    tool="$(hb_json_str tool_name | tr -cd 'A-Za-z0-9._-' | cut -c1-64)"
+    entity="$(hb_sanitize "$(hb_json_str file_path)")"
+    [ -z "$entity" ] && entity="$(hb_sanitize "$(hb_json_str notebook_path)")"
+    case "$tool" in Edit|Write|MultiEdit|NotebookEdit) is_write=true ;; *) is_write=false ;; esac
+    p="${p},\"initiator\":\"agent\""
+    [ -n "$tool" ]   && p="${p},\"tool\":\"${tool}\""
+    [ -n "$entity" ] && p="${p},\"entity\":\"${entity}\",\"entity_type\":\"file\""
+    p="${p},\"is_write\":${is_write}"
+  fi
   p="${p},\"time\":1700000000"
   [ -n "$ver" ] && p="${p},\"v\":\"${ver}\""
   p="${p}}"; printf '%s' "$p"
@@ -38,14 +62,28 @@ build() { # $1 = MODE (presence|agent)
 presence="$(build presence)"
 agent="$(build agent)"
 
-check "presence: type=presence"   'printf "%s" "$presence" | grep -q "\"type\":\"presence\""'
-check "presence: client=plugin"   'printf "%s" "$presence" | grep -q "\"client\":\"plugin\""'
+# presence beat: core envelope + session_id, no agent-only fields.
+check "presence: type=presence"     'printf "%s" "$presence" | grep -q "\"type\":\"presence\""'
+check "presence: client=plugin"     'printf "%s" "$presence" | grep -q "\"client\":\"plugin\""'
+check "presence: has session_id"    'printf "%s" "$presence" | grep -q "\"session_id\":\"$SAMPLE_SID\""'
 check "presence: v is clean semver" 'printf "%s" "$presence" | grep -Eq "\"v\":\"[0-9]+\.[0-9]+\.[0-9]+([.+-][0-9A-Za-z.-]+)?\""'
-check "presence: no initiator"    '! printf "%s" "$presence" | grep -q "initiator"'
+check "presence: no initiator"      '! printf "%s" "$presence" | grep -q "initiator"'
+check "presence: no tool field"     '! printf "%s" "$presence" | grep -q "\"tool\""'
 
-# 3. The agent-track beat is identical plus initiator:"agent".
-check "agent: client=plugin"      'printf "%s" "$agent" | grep -q "\"client\":\"plugin\""'
-check "agent: initiator=agent"    'printf "%s" "$agent" | grep -q "\"initiator\":\"agent\""'
+# agent beat: everything presence has, plus initiator + tool + entity + entity_type + is_write.
+check "agent: has session_id"       'printf "%s" "$agent" | grep -q "\"session_id\":\"$SAMPLE_SID\""'
+check "agent: initiator=agent"      'printf "%s" "$agent" | grep -q "\"initiator\":\"agent\""'
+check "agent: tool=Edit"            'printf "%s" "$agent" | grep -q "\"tool\":\"Edit\""'
+check "agent: entity=file path"     'printf "%s" "$agent" | grep -q "\"entity\":\"$SAMPLE_FILE\""'
+check "agent: entity_type=file"     'printf "%s" "$agent" | grep -q "\"entity_type\":\"file\""'
+check "agent: is_write=true (Edit)" 'printf "%s" "$agent" | grep -q "\"is_write\":true"'
+
+# 4. A non-file tool (Bash) → no entity, is_write false.
+HB_STDIN="{\"session_id\":\"${SAMPLE_SID}\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"ls -la\"}}"
+bash_beat="$(build agent)"
+check "agent(Bash): tool=Bash"       'printf "%s" "$bash_beat" | grep -q "\"tool\":\"Bash\""'
+check "agent(Bash): no entity"       '! printf "%s" "$bash_beat" | grep -q "\"entity\""'
+check "agent(Bash): is_write=false"  'printf "%s" "$bash_beat" | grep -q "\"is_write\":false"'
 
 echo
 if [ "$fails" -eq 0 ]; then echo "smoke: OK (v=$ver)"; exit 0; fi
