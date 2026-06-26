@@ -75,9 +75,22 @@ hb_host() {
 }
 
 # Installed plugin version, parsed from the plugin's own plugin.json (HB-302). Reported on
-# heartbeat so the server can flag machines running an outdated plugin.
+# heartbeat as `v` so the server can flag machines running an outdated plugin.
+#
+# CONTRACT (HB-385): this function is the single guarantee that `v` is a CLEAN semver string
+# or nothing at all — never garbage. The backend's `semverLt` outdated-compare breaks on a
+# malformed value, so we validate the parsed field and emit empty (callers then omit `v`) if
+# it isn't plain semver. Clean > wrong: an omitted `v` just skips the compare; a poisoned one
+# would mis-flag the machine.
 hb_plugin_version() {
   local f="${CLAUDE_PLUGIN_ROOT:-}/.claude-plugin/plugin.json"
   [ -f "$f" ] || return 0
-  grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" 2>/dev/null | head -1 | cut -d'"' -f4
+  local v; v="$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" 2>/dev/null | head -1 | cut -d'"' -f4)"
+  # Strict semver: MAJOR.MINOR.PATCH with an optional pre-release/build suffix. Anything else
+  # (empty, "vX.y", trailing junk) → log once and emit nothing so `v` is omitted, not poisoned.
+  if printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.+-][0-9A-Za-z.-]+)?$'; then
+    printf '%s' "$v"
+  else
+    [ -n "$v" ] && hb_log "plugin version '$v' is not clean semver — omitting v (HB-385)"
+  fi
 }

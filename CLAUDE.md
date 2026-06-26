@@ -24,16 +24,26 @@ scripts/
   _key.sh            # sourced helper: key resolution, host/version, debug logging, per-session id
   heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
+  smoke.sh           # offline heartbeat-contract self-check (HB-385); no network/deps
 ```
 
 ## How effort tracking works
-Tracked time is **pure human presence** (HB-368): the plugin emits only presence beats — there is
-no agent/`code` path. Every beat uses the **universal heartbeat envelope** (HB-367).
-- **`heartbeat.sh`** — fired by the `UserPromptSubmit` hook; emits one presence beat. Fire-and-forget:
-  3s `curl` timeout, backgrounded, always `exit 0` so it can never block or fail a prompt. POSTs a
-  JSON envelope to `https://heroboard.app/api/heartbeat`: `type:"presence"`, `client:"plugin"`, a
-  client-stamped `time` (epoch seconds), the working dir's `remote.origin.url` (`repo` attribution),
-  and `host` + `v` (plugin version) for the Settings "Claude Code connections" card (HB-302).
+Two meters on one **universal heartbeat envelope** (HB-367): **human presence** and a separate
+**AI track**. HB-356/HB-368 had stripped the plugin to presence-only; the AI track is back (Phase 2)
+— agent beats carry `initiator:"agent"` and the server records them as `code` time (incrementing
+`today.minutes` while `humanMinutes` reflects only human prompts). No backend change was needed.
+- **`heartbeat.sh [agent]`** — fired by two hooks. No arg (`UserPromptSubmit`) → one **human
+  presence** beat. `agent` (`PostToolUse`, matcher `*`) → one **AI-work** beat per model tool-use,
+  same envelope plus `initiator:"agent"`. Fire-and-forget: 3s `curl` timeout, backgrounded, always
+  `exit 0` so it can never block or fail a prompt. POSTs a JSON envelope to
+  `https://heroboard.app/api/heartbeat`: `type:"presence"`, `client:"plugin"`, a client-stamped
+  `time` (epoch seconds), the working dir's `remote.origin.url` (`repo` attribution), and `host` +
+  `v` (plugin version) for the Settings "Claude Code connections" card (HB-302). Only the human
+  beat touches the activity file — agent tool-use must not keep the presence ticker alive.
+  **Contract (HB-385):** every beat carries `client:"plugin"` and a clean-semver `v` (or omits `v`
+  — never a malformed value, since the backend compares it with `semverLt`). The clean-semver
+  guarantee lives in `hb_plugin_version` (`_key.sh`); `scripts/smoke.sh` verifies the whole envelope
+  offline.
 - **`presence-ticker.sh start|stop`** — started at `SessionStart`, stopped at `SessionEnd` via a
   PID file. While running it pings every 60s **only if** a human prompted within the last 5 min
   (it reads the mtime of an activity file that `heartbeat.sh` touches on prompts only). Hard 12h
