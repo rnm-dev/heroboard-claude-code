@@ -101,6 +101,13 @@ lmail="$(printf '%s' "$LOGIN_BODY"  | grep -o '"user_email"[[:space:]]*:[[:space
 check "login parse: api_key"    '[ "$lkey" = "hb_live_GRANTED" ]'
 check "login parse: user_email" '[ "$lmail" = "a@b.co" ]'
 
+# Device-code paste-back (HB-417): codes come from chat → sanitize to short-alphanumeric before
+# they go into the hand-built exchange body, so they can't break the JSON or inject.
+csan() { printf '%s' "$1" | tr -cd 'A-Za-z0-9-'; }
+check "code sanitize: strips junk"   '[ "$(csan "a b/c!")" = "abc" ]'
+check "code sanitize: keeps [A-Za-z0-9-]" '[ "$(csan "AB-12_xy")" = "AB-12xy" ]'
+check "exchange body is valid JSON"  '[ "{\"code\":\"$(csan "ABC123")\"}" = "{\"code\":\"ABC123\"}" ]'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "smoke: OK (v=$ver)"; exit 0; fi
 echo "smoke: $fails check(s) FAILED"; exit 1

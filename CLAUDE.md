@@ -24,7 +24,7 @@ scripts/
   _key.sh            # sourced helper: key resolution+write, host/version, debug logging, per-session id, stdin parse/sanitize, browser opener
   heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
-  login.sh           # /heroboard:login browser sign-in (HB-413): desktop_hash → open approval page → poll → write keyfile
+  login.sh           # /heroboard:login (HB-413): browser sign-in (desktop_hash → poll → keyfile); `--code <CODE>` device-code paste-back fallback (HB-417)
   mcp-headers.sh     # MCP headersHelper (HB-413): prints {"X-Api-Key":…} from hb_resolve_key so MCP + hooks share one key
   smoke.sh           # offline contract self-check (HB-385/404/413); no network/deps
 ```
@@ -71,6 +71,12 @@ Two meters on one **universal heartbeat envelope** (HB-367): **human presence** 
 `${HB_BASE}/api/v1/desktop/auth_decisions/api_key?desktop_hash=…` (1s × 60; `200`+`result:"success"`
 → `{api_key,user_email}`), and write the key to the keyfile with `hb_write_key`. Mirrors the macOS
 desktop flow (backend HB-360, resolved); env-aware so a dev copy logs in to `dev.heroboard.app`.
+**Paste-back fallback (HB-417):** if the browser can't open / the poll times out / headless, the
+script prints the approval link and asks for the short one-time **code** shown on the page; the user
+re-runs `/heroboard:login <code>` → `login.sh --code <CODE>` `POST`s `{"code":…}` to
+`${HB_BASE}/api/v1/desktop/auth_decisions/exchange` (`200` body **identical** to the poll → same
+`hb_claim` parser + `hb_write_key`). Only the short code is ever pasted, never the key. Backend:
+HB-416.
 The **keyfile is the single source of truth**: the hooks read it via `hb_resolve_key`, and the MCP
 server reads it too — `.mcp.json` uses `headersHelper: scripts/mcp-headers.sh`, which prints
 `{"X-Api-Key":"<key>"}` from the same `hb_resolve_key`. So one browser approval authorizes **both**

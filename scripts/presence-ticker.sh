@@ -77,7 +77,7 @@ start() {
   # quiet so the same notice isn't repeated on every prompt/edit (HB-248).
   if [ -z "$key" ]; then
     hb_log "no key — surfacing warning, ticker not started"
-    printf '%s\n' '{"systemMessage":"Heroboard: required config missing — api_key. Effort tracking is OFF until it is set. Configure it via /plugin → heroboard → Configure (paste your hb_… key), then start a new session. In the Claude app, also run the plugin in a terminal once so the hooks can read the key."}'
+    printf '%s\n' '{"systemMessage":"Heroboard: not signed in — effort tracking & task tools are OFF. Run  /heroboard:login  to sign in with one browser approval (authorizes both the MCP tools and the effort hooks). Fallback: paste a key via /plugin → heroboard → Configure (Heroboard → Settings → MCP → “+ New key”). In the Claude app, run /heroboard:login in a terminal once so the hooks can read the key."}'
     exit 0
   fi
   # Nudge once/day if a newer version is published (best-effort; runs before the toggle gate so

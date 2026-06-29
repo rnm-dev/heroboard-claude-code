@@ -31,9 +31,10 @@ It opens a Heroboard approval page, waits for you to click **Approve**, and stor
 **single** sign-in authorizes *both* the MCP tools and the effort hooks. No key to copy, no `export`,
 no env var. (Requires Claude Code 2.1.143+.)
 
-**Fallback** — if you can't use the browser flow, paste a key instead: get one in Heroboard →
-**Settings → MCP → "+ New key"** and set it via `/plugin` → heroboard → Configure (stored in your
-system keychain). Never paste a key into the chat.
+**Headless / SSH / another device?** If the browser can't open or the wait times out, the approval
+page shows a short one-time **code** — copy it and run `/heroboard:login <code>` to finish. Only the
+short code goes in chat, never your key. (Deepest fallback: paste a key via `/plugin` → heroboard →
+Configure — get one in Heroboard → **Settings → MCP → "+ New key"**.)
 
 One stored key powers both the MCP server and the effort hooks, the same on macOS / Linux / Windows
 and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
