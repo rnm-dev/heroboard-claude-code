@@ -17,14 +17,16 @@ Installed via `/plugin marketplace add rnm-dev/heroboard-claude-code` →
 .claude-plugin/
   plugin.json        # plugin manifest: name, version, userConfig (api_key, presence_ticker)
   marketplace.json   # one-plugin marketplace pointing at "./"
-.mcp.json            # HTTP MCP server → heroboard.app, auth via ${user_config.api_key}
-hooks/hooks.json     # UserPromptSubmit / SessionStart / SessionEnd → scripts
+.mcp.json            # HTTP MCP server → heroboard.app, auth via headersHelper (scripts/mcp-headers.sh, HB-413)
+hooks/hooks.json     # UserPromptSubmit / PostToolUse / SessionStart / SessionEnd → scripts
 commands/*.md        # slash commands (/heroboard:login, :tasks, :task, :create, :status, :ship)
 scripts/
-  _key.sh            # sourced helper: key resolution, host/version, debug logging, per-session id, stdin JSON parse/sanitize
+  _key.sh            # sourced helper: key resolution+write, host/version, debug logging, per-session id, stdin parse/sanitize, browser opener
   heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
-  smoke.sh           # offline heartbeat-contract self-check (HB-385); no network/deps
+  login.sh           # /heroboard:login browser sign-in (HB-413): desktop_hash → open approval page → poll → write keyfile
+  mcp-headers.sh     # MCP headersHelper (HB-413): prints {"X-Api-Key":…} from hb_resolve_key so MCP + hooks share one key
+  smoke.sh           # offline contract self-check (HB-385/404/413); no network/deps
 ```
 
 ## How effort tracking works
@@ -56,11 +58,25 @@ Two meters on one **universal heartbeat envelope** (HB-367): **human presence** 
   (it reads the mtime of an activity file that `heartbeat.sh` touches on prompts only). Hard 12h
   cap so an orphaned loop dies on its own. Default-on; gated by the `presence_ticker` userConfig
   toggle.
-- **`_key.sh`** — shared, sourced by both. Resolves the API key from
-  `CLAUDE_PLUGIN_OPTION_api_key` (terminal sessions) and caches it `0600` to
-  `~/.config/heroboard-plugin/key` so **agent-mode** (Claude app) sessions, which don't get the
-  env var, can still read it. Also provides `hb_log` (opt-in debug log) and `hb_session_id`
-  (parsed from the hook's stdin JSON) used to namespace the `/tmp` state files per session.
+- **`_key.sh`** — shared, sourced by every script. Resolves the API key (`hb_resolve_key`) from
+  env.conf override → `CLAUDE_PLUGIN_OPTION_api_key` (terminal sessions) → cached
+  `~/.config/heroboard-plugin/key`, and caches the env key `0600` via `hb_write_key` so **agent-mode**
+  (Claude app) sessions, which don't get the env var, can still read it. Also provides `hb_log`
+  (opt-in debug log), `hb_session_id` (namespaces the `/tmp` state files), and `hb_open_url`
+  (cross-platform browser opener for login).
+
+## Authentication — one key, one sign-in (HB-413)
+`/heroboard:login` (`scripts/login.sh`) is the primary path: generate a UUID `desktop_hash`, open
+`${HB_BASE}/desktop/auth?desktop_hash=…&client=plugin`, poll
+`${HB_BASE}/api/v1/desktop/auth_decisions/api_key?desktop_hash=…` (1s × 60; `200`+`result:"success"`
+→ `{api_key,user_email}`), and write the key to the keyfile with `hb_write_key`. Mirrors the macOS
+desktop flow (backend HB-360, resolved); env-aware so a dev copy logs in to `dev.heroboard.app`.
+The **keyfile is the single source of truth**: the hooks read it via `hb_resolve_key`, and the MCP
+server reads it too — `.mcp.json` uses `headersHelper: scripts/mcp-headers.sh`, which prints
+`{"X-Api-Key":"<key>"}` from the same `hb_resolve_key`. So one browser approval authorizes **both**
+MCP and heartbeats (no `/plugin` paste). `userConfig.api_key` stays as the `required:false` fallback;
+a pasted key is cached into the keyfile by the next terminal session. **Never print the key** to
+stdout or the debug log; manual paste must go through `/plugin`, never the chat.
 
 ### State files (all best-effort, guarded, silent)
 - `${TMPDIR:-/tmp}/heroboard-presence.<sid>.pid` — presence loop PID

@@ -1,7 +1,7 @@
 {
   "name": "heroboard",
   "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, human-presence effort heartbeats, and /heroboard commands.",
-  "version": "0.9.4",
+  "version": "0.10.0",
   "author": { "name": "Heroboard" },
   "homepage": "https://heroboard.app",
   "repository": "https://github.com/rnm-dev/heroboard-claude-code",
@@ -9,9 +9,9 @@
     "api_key": {
       "type": "string",
       "title": "Heroboard API key",
-      "description": "Get one in Heroboard → Settings → MCP → “+ New key”. Stored securely in your system keychain. In the Claude app, run the plugin in a terminal once so effort hooks can read it.",
+      "description": "Optional — prefer  /heroboard:login  (browser sign-in). Paste a key here only as a fallback: Heroboard → Settings → MCP → “+ New key”. Stored securely in your system keychain.",
       "sensitive": true,
-      "required": true
+      "required": false
     },
     "presence_ticker": {
       "type": "boolean",

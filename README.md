@@ -23,12 +23,27 @@ GitHub, no separate marketplace repo needed.
 /plugin marketplace add rnm-dev/heroboard-claude-code
 /plugin install heroboard@heroboard
 ```
-On enable, Claude Code **prompts once for your Heroboard API key** and stores it securely in your
-system keychain — no `export`, no env var. Get a key in Heroboard →
-**Settings → MCP → "+ New key"**. (Requires Claude Code 2.1.143+.)
+After install, sign in with **one browser approval**:
+```
+/heroboard:login
+```
+It opens a Heroboard approval page, waits for you to click **Approve**, and stores the key so a
+**single** sign-in authorizes *both* the MCP tools and the effort hooks. No key to copy, no `export`,
+no env var. (Requires Claude Code 2.1.143+.)
 
-The same stored key powers both the MCP server and the effort hooks. It works the same on
-macOS / Linux / Windows and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
+**Fallback** — if you can't use the browser flow, paste a key instead: get one in Heroboard →
+**Settings → MCP → "+ New key"** and set it via `/plugin` → heroboard → Configure (stored in your
+system keychain). Never paste a key into the chat.
+
+One stored key powers both the MCP server and the effort hooks, the same on macOS / Linux / Windows
+and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
+
+### Updating
+The plugin nudges you once a day at session start when a newer version is published. To update:
+```
+/plugin update heroboard@heroboard
+/reload-plugins
+```
 
 ### Auto-install for a whole team
 Drop this in your repo's `.claude/settings.json` so anyone who trusts the project folder gets
@@ -46,13 +61,17 @@ prompted to install:
 }
 ```
 
-**Agent-mode (Claude app) note.** In desktop/web *agent-mode* sessions the keychain key reaches
-the MCP server but isn't exported into the effort hooks' shell env, so the hooks alone can't
-authenticate. To bridge this, the first terminal CLI session caches the key to
-`~/.config/heroboard-plugin/key` (`0600`), which agent-mode hooks then read. So run the plugin in a
-terminal once after install to enable effort tracking inside the app. Delete that file to opt out.
+**How the key is stored.** `/heroboard:login` writes the key to `~/.config/heroboard-plugin/key`
+(`0600`). Both the effort hooks and the MCP server read it from there — the MCP server via a
+`headersHelper` script (`scripts/mcp-headers.sh`) that injects the `X-Api-Key` header at connect
+time. That's why one sign-in covers everything. Delete that file to sign out.
 
-To change the key later, update the plugin's config via `/plugin` (or disable + re-enable).
+**Agent-mode (Claude app) note.** Desktop/web *agent-mode* sessions don't export config into the
+hook/MCP-helper shell env, so they rely on that keyfile. Run `/heroboard:login` (or the plugin) in a
+terminal once after install; agent-mode sessions then read the cached key. A key pasted via `/plugin`
+is likewise cached to the keyfile by your next terminal session.
+
+To change the key later, run `/heroboard:login` again, or update the plugin's config via `/plugin`.
 
 ## Migrating from manual setup
 If you previously added a `~/.claude/settings.json` heartbeat hook or `export HEROBOARD_API_KEY`,

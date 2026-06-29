@@ -51,17 +51,26 @@ hb_log() {
   printf '%s [%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "${HB_TAG:-hook}" "$*" >> "$HB_LOGFILE" 2>/dev/null
 }
 
+# Write the API key to the cache keyfile, 0600, only when changed (HB-413). One locked-write path,
+# reused by hb_resolve_key (env → cache, for agent-mode hooks) and the browser login
+# (scripts/login.sh). Best-effort + silent — never fail a caller. Returns nonzero on empty input.
+hb_write_key() {
+  [ -n "$1" ] || return 1
+  [ "$(cat "$HB_KEYFILE" 2>/dev/null)" = "$1" ] && return 0
+  mkdir -p "$(dirname "$HB_KEYFILE")" 2>/dev/null && ( umask 177; printf '%s' "$1" > "$HB_KEYFILE" ) 2>/dev/null
+}
+
 # Print the resolved key (empty if none). Side effect: when the env key is present, cache it.
+# Resolution order: env.conf override (dev copy) → CLAUDE_PLUGIN_OPTION_api_key (terminal userConfig)
+# → cached keyfile (agent-mode + browser-login bridge, HB-413). This same helper backs the MCP
+# headersHelper (scripts/mcp-headers.sh), so MCP and the hooks authenticate from one source.
 hb_resolve_key() {
   # Dev copies (run via --plugin-dir, which has no userConfig) pin the key in env.conf so the
   # scripts don't fall back to the prod-cached keyfile and 401 against the dev backend.
   if [ -n "$HB_KEY_OVERRIDE" ]; then hb_log "key from env.conf override (len=${#HB_KEY_OVERRIDE})"; printf '%s' "$HB_KEY_OVERRIDE"; return 0; fi
   local k="${CLAUDE_PLUGIN_OPTION_api_key:-}"
   if [ -n "$k" ]; then
-    # cache for env-less (agent-mode) sessions, only when changed, perms locked to the user
-    if [ "$(cat "$HB_KEYFILE" 2>/dev/null)" != "$k" ]; then
-      mkdir -p "$(dirname "$HB_KEYFILE")" 2>/dev/null && ( umask 177; printf '%s' "$k" > "$HB_KEYFILE" ) 2>/dev/null
-    fi
+    hb_write_key "$k"   # cache for env-less (agent-mode) sessions, only when changed, perms 0600
     hb_log "key resolved from env (len=${#k})"
     printf '%s' "$k"
     return 0
@@ -69,6 +78,19 @@ hb_resolve_key() {
   local fk; fk="$(cat "$HB_KEYFILE" 2>/dev/null)"
   if [ -n "$fk" ]; then hb_log "key resolved from file (len=${#fk})"; else hb_log "NO key (env empty, no keyfile)"; fi
   printf '%s' "$fk"
+}
+
+# Open a URL in the user's default browser, cross-platform (HB-413). Backgrounded + silenced so a
+# slow/hanging opener can't block the login; returns nonzero when no opener exists (headless/SSH)
+# so the caller can fall back to printing the URL for manual open.
+hb_open_url() {
+  [ -n "$1" ] || return 1
+  if   command -v open         >/dev/null 2>&1; then ( open "$1"         >/dev/null 2>&1 & ); return 0  # macOS
+  elif command -v xdg-open     >/dev/null 2>&1; then ( xdg-open "$1"     >/dev/null 2>&1 & ); return 0  # Linux
+  elif command -v cmd.exe      >/dev/null 2>&1; then ( cmd.exe /c start "" "$1" >/dev/null 2>&1 & ); return 0  # WSL/Win
+  elif command -v powershell.exe >/dev/null 2>&1; then ( powershell.exe -NoProfile Start-Process "$1" >/dev/null 2>&1 & ); return 0
+  fi
+  return 1
 }
 
 # --- hook stdin JSON, read ONCE (HB-404) -------------------------------------------------------

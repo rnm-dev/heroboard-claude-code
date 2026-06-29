@@ -3,9 +3,7 @@
     "heroboard": {
       "type": "http",
       "url": "https://heroboard.app/api/mcp/mcp",
-      "headers": {
-        "X-Api-Key": "${user_config.api_key}"
-      }
+      "headersHelper": "${CLAUDE_PLUGIN_ROOT}/scripts/mcp-headers.sh"
     }
   }
 }

@@ -85,6 +85,22 @@ check "agent(Bash): tool=Bash"       'printf "%s" "$bash_beat" | grep -q "\"tool
 check "agent(Bash): no entity"       '! printf "%s" "$bash_beat" | grep -q "\"entity\""'
 check "agent(Bash): is_write=false"  'printf "%s" "$bash_beat" | grep -q "\"is_write\":false"'
 
+# 5. MCP headersHelper / browser-login unification (HB-413). Both run in a temp HOME so the real
+#    keyfile is never touched. mcp-headers.sh resolves the SAME key the hooks use.
+TMPH="$(mktemp -d)"; mkdir -p "$TMPH/.config/heroboard-plugin"
+printf 'hb_live_smoke' > "$TMPH/.config/heroboard-plugin/key"
+hdr_with="$(HOME="$TMPH" CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PLUGIN_OPTION_api_key= bash "$HERE/mcp-headers.sh"; )"
+hdr_none="$(HOME="$(mktemp -d)" CLAUDE_PLUGIN_ROOT="$ROOT" CLAUDE_PLUGIN_OPTION_api_key= bash "$HERE/mcp-headers.sh"; echo "exit=$?")"
+check "mcp-headers: emits X-Api-Key from keyfile" 'printf "%s" "$hdr_with" | grep -q "{\"X-Api-Key\":\"hb_live_smoke\"}"'
+check "mcp-headers: no key -> {} + nonzero"        'printf "%s" "$hdr_none" | grep -q "^{}" && printf "%s" "$hdr_none" | grep -q "exit=1"'
+
+# Login response parse (HB-413): the same flat grep login.sh uses pulls api_key + user_email.
+LOGIN_BODY='{"result":"success","data":{"api_key":"hb_live_GRANTED","user_email":"a@b.co"}}'
+lkey="$(printf '%s' "$LOGIN_BODY"   | grep -o '"api_key"[[:space:]]*:[[:space:]]*"[^"]*"'    | head -1 | cut -d'"' -f4)"
+lmail="$(printf '%s' "$LOGIN_BODY"  | grep -o '"user_email"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)"
+check "login parse: api_key"    '[ "$lkey" = "hb_live_GRANTED" ]'
+check "login parse: user_email" '[ "$lmail" = "a@b.co" ]'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "smoke: OK (v=$ver)"; exit 0; fi
 echo "smoke: $fails check(s) FAILED"; exit 1
