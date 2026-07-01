@@ -19,12 +19,13 @@ Installed via `/plugin marketplace add rnm-dev/heroboard-claude-code` →
   marketplace.json   # one-plugin marketplace pointing at "./"
 .mcp.json            # HTTP MCP server → heroboard.app, auth via headersHelper (scripts/mcp-headers.sh, HB-413)
 hooks/hooks.json     # UserPromptSubmit / PostToolUse / SessionStart / SessionEnd → scripts
-commands/*.md        # slash commands (/heroboard:login, :tasks, :task, :create, :status, :ship)
+commands/*.md        # slash commands (/heroboard:login, :update, :tasks, :task, :create, :status, :ship)
 scripts/
-  _key.sh            # sourced helper: key resolution+write, host/version, debug logging, per-session id, stdin parse/sanitize, browser opener
+  _key.sh            # sourced helper: key resolution+write, host/version, debug logging, per-session id, stdin parse/sanitize, headless-aware browser opener
   heartbeat.sh       # per-prompt presence heartbeat
   presence-ticker.sh # backgrounded ~60s presence loop + once-a-day update nudge
-  login.sh           # /heroboard:login (HB-413): browser sign-in (desktop_hash → poll → keyfile); `--code <CODE>` device-code paste-back fallback (HB-417)
+  login.sh           # /heroboard:login (HB-413): browser sign-in (desktop_hash → poll → keyfile); `--code <CODE>` device-code paste-back fallback (HB-417); headless-aware (HB-469)
+  update.sh          # /heroboard:update (HB-470): report installed vs latest published version + how to upgrade
   mcp-headers.sh     # MCP headersHelper (HB-413): prints {"X-Api-Key":…} from hb_resolve_key so MCP + hooks share one key
   smoke.sh           # offline contract self-check (HB-385/404/413); no network/deps
 ```

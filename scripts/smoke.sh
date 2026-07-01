@@ -108,6 +108,14 @@ check "code sanitize: strips junk"   '[ "$(csan "a b/c!")" = "abc" ]'
 check "code sanitize: keeps [A-Za-z0-9-]" '[ "$(csan "AB-12_xy")" = "AB-12xy" ]'
 check "exchange body is valid JSON"  '[ "{\"code\":\"$(csan "ABC123")\"}" = "{\"code\":\"ABC123\"}" ]'
 
+# Headless detection (HB-469): an SSH session must be treated as no-browser (nonzero), so login
+# shows the link + paste-back code instead of falsely reporting "Opened". (Only the headless path
+# is exercised here — the success path would actually launch a browser.)
+check "hb_open_url: SSH -> headless" 'SSH_CONNECTION="1.2.3.4 22 5.6.7.8 22" hb_open_url "https://x.test"; [ $? -ne 0 ]'
+
+# Update check compare (HB-470): sort -V picks the higher semver (same compare update.sh uses).
+check "version compare picks higher" '[ "$(printf "%s\n%s\n" "0.10.2" "0.11.0" | sort -V | tail -n1)" = "0.11.0" ]'
+
 echo
 if [ "$fails" -eq 0 ]; then echo "smoke: OK (v=$ver)"; exit 0; fi
 echo "smoke: $fails check(s) FAILED"; exit 1

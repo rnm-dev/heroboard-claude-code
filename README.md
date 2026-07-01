@@ -15,8 +15,8 @@ GitHub, no separate marketplace repo needed.
   - a **continuous presence ticker** that keeps time accruing every ~60s while you're actively
     prompting (a prompt within the last 5 min), and goes idle automatically once you stop.
   - tracked time is **pure human hours**; a separate AI-effort track lands in a later phase.
-- **Slash commands**: `/heroboard:login`, `/heroboard:tasks`, `/heroboard:task <KEY>`,
-  `/heroboard:create <desc>`, `/heroboard:status`, `/heroboard:ship`.
+- **Slash commands**: `/heroboard:login`, `/heroboard:update`, `/heroboard:tasks`,
+  `/heroboard:task <KEY>`, `/heroboard:create <desc>`, `/heroboard:status`, `/heroboard:ship`.
 
 ## Install
 ```

@@ -77,16 +77,23 @@ hb_resolve_key() {
   printf '%s' "$fk"
 }
 
-# Open a URL in the user's default browser, cross-platform (HB-413). Backgrounded + silenced so a
-# slow/hanging opener can't block the login; returns nonzero when no opener exists (headless/SSH)
-# so the caller can fall back to printing the URL for manual open.
+# Open a URL in the user's default browser, cross-platform (HB-413/HB-469). Returns nonzero when a
+# browser can't reach THIS user — an SSH session (a browser opened on the far end is useless) or a
+# headless Linux box/container with no display — so the caller falls back to the link + paste-back
+# code instead of falsely reporting "Opened". Key fix (HB-469): gate on the ENVIRONMENT, not merely
+# on an opener binary existing (xdg-open is often present with no display). Backgrounded + silenced
+# so a slow/hanging opener can't block the login.
 hb_open_url() {
   [ -n "$1" ] || return 1
-  if   command -v open         >/dev/null 2>&1; then ( open "$1"         >/dev/null 2>&1 & ); return 0  # macOS
-  elif command -v xdg-open     >/dev/null 2>&1; then ( xdg-open "$1"     >/dev/null 2>&1 & ); return 0  # Linux
-  elif command -v cmd.exe      >/dev/null 2>&1; then ( cmd.exe /c start "" "$1" >/dev/null 2>&1 & ); return 0  # WSL/Win
-  elif command -v powershell.exe >/dev/null 2>&1; then ( powershell.exe -NoProfile Start-Process "$1" >/dev/null 2>&1 & ); return 0
-  fi
+  # Remote shell → opening a browser here won't reach the user. Treat as headless.
+  [ -n "${SSH_CONNECTION:-}${SSH_TTY:-}${SSH_CLIENT:-}" ] && return 1
+  # WSL / Windows reach the Windows browser with no X server needed.
+  if command -v cmd.exe        >/dev/null 2>&1; then ( cmd.exe /c start "" "$1" >/dev/null 2>&1 & ); return 0; fi
+  if command -v powershell.exe >/dev/null 2>&1; then ( powershell.exe -NoProfile Start-Process "$1" >/dev/null 2>&1 & ); return 0; fi
+  # macOS.
+  if [ "$(uname -s 2>/dev/null)" = Darwin ] && command -v open >/dev/null 2>&1; then ( open "$1" >/dev/null 2>&1 & ); return 0; fi
+  # Linux/BSD need a display server; without one it's headless.
+  if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v xdg-open >/dev/null 2>&1; then ( xdg-open "$1" >/dev/null 2>&1 & ); return 0; fi
   return 1
 }
 

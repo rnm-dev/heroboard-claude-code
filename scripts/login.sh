@@ -80,11 +80,14 @@ confirm_url="${HB_BASE}/desktop/auth?desktop_hash=${hash}&client=plugin"
 poll_url="${HB_BASE}/api/v1/desktop/auth_decisions/api_key?desktop_hash=${hash}"
 hb_log "login start (base=${HB_BASE} hash=${hash})"
 
-printf 'Heroboard login — approve this Claude Code session in your browser.\n'
+printf 'Heroboard login — approve this Claude Code session.\n'
 if hb_open_url "$confirm_url"; then
-  printf 'Opened: %s\n' "$confirm_url"
+  printf 'Opened in your browser: %s\n' "$confirm_url"
 else
-  printf 'Could not open a browser automatically. Open this URL to approve:\n  %s\n' "$confirm_url"
+  # Headless / SSH / no browser here (HB-469): surface the link + paste-back code up front, don't
+  # pretend a browser opened. Approving the same link on ANY device still auto-completes the poll.
+  printf 'No browser on this machine (headless/SSH). On any device, open this link, sign in, and Approve:\n  %s\n' "$confirm_url"
+  printf 'The approval is detected automatically. If it isn'\''t, copy the CODE shown on the page and run:  /heroboard:login <code>\n'
 fi
 printf 'Waiting for approval (up to %ss)…\n' "$POLL_MAX"
 
