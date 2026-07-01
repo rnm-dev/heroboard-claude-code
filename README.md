@@ -42,9 +42,12 @@ and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
 ### Updating
 The plugin nudges you once a day at session start when a newer version is published. To update:
 ```
+/plugin marketplace update heroboard
 /plugin update heroboard@heroboard
 /reload-plugins
 ```
+The first line refreshes the cached marketplace — without it, `/plugin update` won't see the new
+version. Or just run `/heroboard:update` to check and get these steps.
 
 ### Auto-install for a whole team
 Drop this in your repo's `.claude/settings.json` so anyone who trusts the project folder gets

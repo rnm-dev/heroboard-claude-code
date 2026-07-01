@@ -13,7 +13,7 @@ hb_log "update check installed=${installed:-?} latest=${latest:-?}"
 printf 'Installed: %s\n' "${installed:-unknown}"
 if [ -z "$latest" ]; then
   printf 'Latest:    unknown (could not reach GitHub)\n'
-  printf 'To update anyway, run:\n  /plugin update heroboard@heroboard\n  /reload-plugins\n'
+  printf 'To update anyway, run:\n  /plugin marketplace update heroboard\n  /plugin update heroboard@heroboard\n  /reload-plugins\n'
   exit 0
 fi
 printf 'Latest:    %s\n' "$latest"
@@ -24,7 +24,7 @@ fi
 # sort -V picks the higher semver (same compare as the nudge); bails gracefully if unavailable.
 hi="$(printf '%s\n%s\n' "$installed" "$latest" | sort -V 2>/dev/null | tail -n1)"
 if [ "$hi" = "$latest" ] && [ "$installed" != "$latest" ]; then
-  printf '\n⬆️  Update available (%s → %s). To upgrade, run:\n  /plugin update heroboard@heroboard\n  /reload-plugins\n' "$installed" "$latest"
+  printf '\n⬆️  Update available (%s → %s). To upgrade, run:\n  /plugin marketplace update heroboard\n  /plugin update heroboard@heroboard\n  /reload-plugins\n' "$installed" "$latest"
 else
   printf '\nℹ️  Installed version is ahead of published (dev build) — nothing to update.\n'
 fi

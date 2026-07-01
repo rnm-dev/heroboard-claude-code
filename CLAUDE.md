@@ -108,12 +108,14 @@ the key** to stdout or the debug log, and never ask for the key in chat — only
   `rnm-dev/heroboard-claude-code`. Keep them in sync if the repo ever moves.
 
 ## Releasing
-1. Bump `version` in **both** `.claude-plugin/plugin.json` and the matching entry in
-   `.claude-plugin/marketplace.json` (they should always match).
+1. Bump `version` in **both** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
+   (which has it **twice** — `metadata.version` and the plugin entry `version`); all must match.
 2. `claude plugin validate .`
 3. Commit + push to `main`. The once-a-day `SessionStart` nudge compares the installed version
-   against `main`'s `plugin.json` and tells users to run
-   `/plugin update heroboard@heroboard` + `/reload-plugins`.
+   against `main`'s `plugin.json` and tells users to run `/plugin marketplace update heroboard`
+   (refreshes the cached marketplace — required, else `/plugin update` can't see the new version),
+   then `/plugin update heroboard@heroboard`, then `/reload-plugins`. `/heroboard:update` prints the
+   same steps on demand.
 
 ## Debugging the hooks
 Hooks are otherwise invisible. Enable logging with `export HEROBOARD_DEBUG=1` **or**
