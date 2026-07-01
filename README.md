@@ -33,8 +33,8 @@ no env var. (Requires Claude Code 2.1.143+.)
 
 **Headless / SSH / another device?** If the browser can't open or the wait times out, the approval
 page shows a short one-time **code** — copy it and run `/heroboard:login <code>` to finish. Only the
-short code goes in chat, never your key. (Deepest fallback: paste a key via `/plugin` → heroboard →
-Configure — get one in Heroboard → **Settings → MCP → "+ New key"**.)
+short code goes in chat, never your key. (Deepest fallback: get a key in Heroboard →
+**Settings → MCP → "+ New key"** and write it to `~/.config/heroboard-plugin/key` yourself.)
 
 One stored key powers both the MCP server and the effort hooks, the same on macOS / Linux / Windows
 and in GUI editors (VSCode, JetBrains) — anywhere Claude Code runs.
@@ -67,22 +67,23 @@ prompted to install:
 `headersHelper` script (`scripts/mcp-headers.sh`) that injects the `X-Api-Key` header at connect
 time. That's why one sign-in covers everything. Delete that file to sign out.
 
-**Agent-mode (Claude app) note.** Desktop/web *agent-mode* sessions don't export config into the
-hook/MCP-helper shell env, so they rely on that keyfile. Run `/heroboard:login` (or the plugin) in a
-terminal once after install; agent-mode sessions then read the cached key. A key pasted via `/plugin`
-is likewise cached to the keyfile by your next terminal session.
+The plugin ships **no configuration**, so installing it prompts you for nothing — just run
+`/heroboard:login` when you're ready. (Delete the keyfile to sign out; run `/heroboard:login` again
+to switch accounts.)
 
-To change the key later, run `/heroboard:login` again, or update the plugin's config via `/plugin`.
+**Agent-mode (Claude app) note.** Desktop/web *agent-mode* sessions rely on that keyfile. Run
+`/heroboard:login` in a terminal once after install; agent-mode sessions then read the cached key.
 
 ## Migrating from manual setup
 If you previously added a `~/.claude/settings.json` heartbeat hook or `export HEROBOARD_API_KEY`,
-remove them after installing — the plugin replaces both (and reads the key from the keychain).
+remove them after installing — the plugin replaces both (and reads the key written by
+`/heroboard:login`).
 
 ## Notes
 - Heartbeats are fire-and-forget (3s timeout, backgrounded) — never block or fail a prompt.
-- No key set → heartbeats silently no-op; nothing breaks. The one-time "set your key" notice is
-  surfaced at `SessionStart`.
-- Continuous presence ticker is **on by default** — toggle it via the plugin's config (`/plugin`).
+- Not signed in → heartbeats silently no-op; nothing breaks. The one-time "run `/heroboard:login`"
+  notice is surfaced at `SessionStart`.
+- Continuous presence ticker is **on by default** — turn it off with `HEROBOARD_PRESENCE_TICKER=0`.
   It keeps effort accruing every ~60s while a session is **active** (you prompted within the last
   5 min), and goes idle automatically once you stop — so an open-but-idle session no longer accrues
   time.

@@ -104,5 +104,5 @@ hb_log "login timeout after ${i}s — offering code paste-back"
 printf '\n⏱  No approval received.\n'
 printf 'Open this link on any device, sign in, and click Approve:\n  %s\n' "$confirm_url"
 printf 'Then copy the code shown on the page and run:  /heroboard:login <code>\n'
-printf '(Deepest fallback: set a key via  /plugin → heroboard → Configure  — never paste the key into this chat.)\n'
+printf '(Deepest fallback: write your key from Heroboard → Settings → MCP to  %s  — never paste it into this chat.)\n' "$HB_KEYFILE"
 exit 1

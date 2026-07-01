@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
-# Shared Heroboard API-key resolver (HB-252). Sourced by heartbeat.sh / presence-ticker.sh.
+# Shared Heroboard API-key resolver (HB-252/HB-413/HB-468). Sourced by every plugin script.
 #
-# The key lives in the plugin's userConfig → system keychain (HB-244). Claude Code exports
-# it to hooks as CLAUDE_PLUGIN_OPTION_api_key — but ONLY in terminal CLI sessions. In
-# agent-mode (the Claude desktop/web app) the userConfig key reaches the MCP server (via
-# ${user_config.api_key} substitution) yet is NOT exported into hook env, so the shell hooks
-# would silently no-op and Agent time wouldn't accrue.
-#
-# Bridge: a terminal session (which HAS the key in env) caches it to a dedicated config file
-# (0600); agent-mode sessions, lacking the env var, fall back to reading that file. The
-# plaintext key on disk is the deliberate trade-off for app-session effort tracking. Best-effort
-# throughout: a hook must never block or fail, so every fs op is guarded and silent.
+# The key's single source of truth is the keyfile ~/.config/heroboard-plugin/key, written by the
+# browser login (/heroboard:login → login.sh via hb_write_key). Both the effort hooks (here) and
+# the MCP server (scripts/mcp-headers.sh, a headersHelper) read it, so ONE sign-in authorizes both.
+# The plugin ships NO userConfig, so install prompts for nothing (HB-468). CLAUDE_PLUGIN_OPTION_api_key
+# is still honored as a manual/legacy env override, and when present is cached to the keyfile too.
+# Plaintext key on disk (0600) is the deliberate trade-off. Best-effort throughout: a hook must
+# never block or fail, so every fs op is guarded and silent.
 # --- instance environment (one knob drives everything) ------------------------------------------
 # `HB_ENV` is the single variable that distinguishes this install: it derives the backend URL, the
 # /tmp + config namespace, and the key source. Default is prod, so the PUBLISHED plugin behaves
@@ -61,8 +58,8 @@ hb_write_key() {
 }
 
 # Print the resolved key (empty if none). Side effect: when the env key is present, cache it.
-# Resolution order: env.conf override (dev copy) → CLAUDE_PLUGIN_OPTION_api_key (terminal userConfig)
-# → cached keyfile (agent-mode + browser-login bridge, HB-413). This same helper backs the MCP
+# Resolution order: env.conf override (dev copy) → CLAUDE_PLUGIN_OPTION_api_key (legacy/manual env
+# override) → the login-written keyfile (the normal path, HB-413). This same helper backs the MCP
 # headersHelper (scripts/mcp-headers.sh), so MCP and the hooks authenticate from one source.
 hb_resolve_key() {
   # Dev copies (run via --plugin-dir, which has no userConfig) pin the key in env.conf so the

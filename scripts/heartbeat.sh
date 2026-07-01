@@ -6,11 +6,10 @@
 #   "agent"  — AI-work beat, fired by PostToolUse on every model tool-use. Adds initiator:"agent"
 #              so the server credits the separate AI track (Phase 2 — restores what HB-368 dropped;
 #              HB-356/HB-368 had made the plugin human-presence-only).
-# The API key comes from the plugin's userConfig → keychain (HB-244), exported to hooks as
-# CLAUDE_PLUGIN_OPTION_api_key in terminal sessions; agent-mode (app) sessions fall back to the
-# cached ~/.config/heroboard-plugin/key (see _key.sh, HB-252). No key → silent no-op here on
-# purpose: this fires on every prompt/edit, so the loud "required config missing" warning lives
-# once at SessionStart (presence-ticker.sh) instead of spamming it per event (HB-248).
+# The API key comes from the keyfile written by /heroboard:login (see _key.sh, HB-413/HB-468) — the
+# plugin ships no userConfig, so nothing is prompted at install. No key → silent no-op here on
+# purpose: this fires on every prompt/edit, so the loud "not signed in" nudge lives once at
+# SessionStart (presence-ticker.sh) instead of spamming it per event (HB-248).
 . "$(cd "$(dirname "$0")" && pwd)/_key.sh"
 # Read the hook's stdin JSON once (see _key.sh): agent beats parse several fields out of it
 # (session_id + tool + the file it touched) and a pipe can only be consumed once.

@@ -1,23 +1,8 @@
 {
   "name": "heroboard",
   "description": "Heroboard: gamified dev board for Claude Code — MCP task tools, human-presence effort heartbeats, and /heroboard commands.",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "author": { "name": "Heroboard" },
   "homepage": "https://heroboard.app",
-  "repository": "https://github.com/rnm-dev/heroboard-claude-code",
-  "userConfig": {
-    "api_key": {
-      "type": "string",
-      "title": "Heroboard API key",
-      "description": "Optional — prefer  /heroboard:login  (browser sign-in). Paste a key here only as a fallback: Heroboard → Settings → MCP → “+ New key”. Stored securely in your system keychain.",
-      "sensitive": true,
-      "required": false
-    },
-    "presence_ticker": {
-      "type": "boolean",
-      "title": "Continuous presence ticker",
-      "description": "Keep effort accruing every ~60s while a session is active — i.e. you prompted within the last 5 min — so time tracks live presence, not just an open window. Goes idle automatically once you stop prompting. On by default; turn off to count only per-prompt events.",
-      "default": true
-    }
-  }
+  "repository": "https://github.com/rnm-dev/heroboard-claude-code"
 }
